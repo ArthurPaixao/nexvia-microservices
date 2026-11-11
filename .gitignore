@@ -1,0 +1,22 @@
+# Dados do MySQL (volume local do docker-compose)
+.data/
+
+# Build Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+.sts4-cache/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

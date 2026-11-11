@@ -1,0 +1,22 @@
+services:
+  mysqldb:
+    # Nome do container
+    container_name: nexvia_mysql
+
+    # Imagem utilizada
+    image: mysql:8.4.6
+
+    # Variaveis de ambiente do MySQL
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+
+    # Mapeamento de portas
+    ports:
+      - "3306:3306"
+
+    # Persistencia dos dados
+    # Cada microsservico cria o SEU banco (createDatabaseIfNotExist=true):
+    #   ms-apoio   -> nexvia_apoio
+    #   ms-alertas -> nexvia_alertas
+    volumes:
+      - ./.data/mysql-data8:/var/lib/mysql
