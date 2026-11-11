@@ -1,0 +1,1198 @@
+{
+  "info": {
+    "name": "NEXVIA",
+    "description": "NEXVIA - Global Solution 2026.2 (Microservice and Web Engineering & IT Services).\n\nTodas as requisições passam pelo API Gateway ({{baseUrl}}). Rode as pastas 1 a 5 em ordem, com o banco recém-criado (carga inicial do Flyway). A pasta 6 é manual: exige parar o ms-apoio.\n\nGuia completo: docs/GUIA_DE_TESTES.md",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8082"
+    },
+    {
+      "key": "eurekaUrl",
+      "value": "http://localhost:8761"
+    },
+    {
+      "key": "pessoaCriadaId",
+      "value": ""
+    },
+    {
+      "key": "acionamentoCriadoId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1 - Infraestrutura",
+      "description": "Eureka, Gateway, Swagger e Load Balancer.",
+      "item": [
+        {
+          "name": "1.1 Eureka - servicos registrados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{eurekaUrl}}/eureka/apps"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"API-GATEWAY, MS-APOIO e MS-ALERTAS registrados\", () => { const t = pm.response.text(); [\"API-GATEWAY\",\"MS-APOIO\",\"MS-ALERTAS\"].forEach(s => pm.expect(t).to.include(s)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Swagger dinamico do Gateway (swagger-config)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v3/api-docs/swagger-config"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"lista ms-apoio e ms-alertas\", () => { const n = pm.response.json().urls.map(u => u.name); pm.expect(n).to.include(\"ms-apoio\"); pm.expect(n).to.include(\"ms-alertas\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 OpenAPI do ms-apoio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/v3/api-docs"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"titulo NEXVIA\", () => pm.expect(pm.response.json().info.title).to.include(\"NEXVIA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 OpenAPI do ms-alertas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/v3/api-docs"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"titulo NEXVIA\", () => pm.expect(pm.response.json().info.title).to.include(\"NEXVIA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.5 Load Balancer - porta da instancia do ms-apoio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/port",
+            "description": "Com 2 instâncias do ms-apoio, execute várias vezes: a porta alterna."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"mostra a porta\", () => pm.expect(pm.response.text()).to.include(\"porta\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 - ms-apoio (CRUD)",
+      "description": "CRUD completo de pessoas: GET, GET por ID, POST (201 + Location), PUT e DELETE.",
+      "item": [
+        {
+          "name": "2.1 Listar pessoas (por prioridade)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"5 pessoas da carga inicial\", () => pm.expect(pm.response.json().length).to.be.at.least(5));",
+                  "pm.test(\"prioridade 1 primeiro\", () => pm.expect(pm.response.json()[0].prioridade).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 Buscar pessoa por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"nome = Maria Aparecida dos Santos\", () => pm.expect(pm.response.json().nome).to.eql(\"Maria Aparecida dos Santos\"));",
+                  "pm.test(\"statusSeguranca = CADASTRADA\", () => pm.expect(pm.response.json().statusSeguranca).to.eql(\"CADASTRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Cadastrar pessoa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"José Ferreira\",\n  \"endereco\": \"Rua Nova, 10\",\n  \"bairro\": \"Vila Ribeirinha\",\n  \"necessidade\": \"Usa marca-passo, 90 anos\",\n  \"prioridade\": 1,\n  \"nomePadrinho\": \"Rita Ferreira\",\n  \"telefonePadrinho\": \"11912345678\",\n  \"consentimentoLgpd\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"header Location com a URI do recurso\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(/\\/api\\/v1\\/pessoas\\/\\d+$/));",
+                  "pm.test(\"statusSeguranca = CADASTRADA\", () => pm.expect(pm.response.json().statusSeguranca).to.eql(\"CADASTRADA\"));",
+                  "pm.collectionVariables.set(\"pessoaCriadaId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.4 Atualizar pessoa",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/{{pessoaCriadaId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"José Ferreira\",\n  \"endereco\": \"Rua Nova, 12\",\n  \"bairro\": \"Vila Ribeirinha\",\n  \"necessidade\": \"Usa marca-passo, 90 anos\",\n  \"prioridade\": 2,\n  \"nomePadrinho\": \"Rita Ferreira\",\n  \"telefonePadrinho\": \"11912345678\",\n  \"consentimentoLgpd\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"prioridade = 2\", () => pm.expect(pm.response.json().prioridade).to.eql(2));",
+                  "pm.test(\"endereco = Rua Nova, 12\", () => pm.expect(pm.response.json().endereco).to.eql(\"Rua Nova, 12\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.5 Excluir pessoa",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/{{pessoaCriadaId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.6 Buscar pessoa excluida (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/{{pessoaCriadaId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(404); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 - ms-alertas (CRUD)",
+      "description": "CRUD completo de acionamentos e consulta dos tipos de risco.",
+      "item": [
+        {
+          "name": "3.1 Listar tipos de risco",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/tipos-risco"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"5 tipos de risco\", () => pm.expect(pm.response.json().length).to.eql(5));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.2 Listar acionamentos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"3 acionamentos da carga inicial\", () => pm.expect(pm.response.json().length).to.be.at.least(3));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.3 Buscar acionamento por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = ABERTO\", () => pm.expect(pm.response.json().status).to.eql(\"ABERTO\"));",
+                  "pm.test(\"pessoaId = 1\", () => pm.expect(pm.response.json().pessoaId).to.eql(1));",
+                  "pm.test(\"tipoRisco.nome = Deslizamento\", () => pm.expect(pm.response.json().tipoRisco.nome).to.eql(\"Deslizamento\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.4 Abrir acionamento (valida pessoa via OpenFeign)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pessoaId\": 2,\n  \"tipoRiscoId\": 2,\n  \"rua\": \"Travessa do Córrego\",\n  \"gravidade\": \"ALTA\",\n  \"descricao\": \"Água subindo rapidamente na Travessa do Córrego\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"header Location com a URI do recurso\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(/\\/api\\/v1\\/acionamentos\\/\\d+$/));",
+                  "pm.test(\"status = ABERTO\", () => pm.expect(pm.response.json().status).to.eql(\"ABERTO\"));",
+                  "pm.collectionVariables.set(\"acionamentoCriadoId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.5 Atualizar acionamento",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/{{acionamentoCriadoId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pessoaId\": 2,\n  \"tipoRiscoId\": 3,\n  \"rua\": \"Travessa do Córrego\",\n  \"gravidade\": \"MEDIA\",\n  \"descricao\": \"Água subindo rapidamente na Travessa do Córrego\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"tipoRisco.nome = Enxurrada\", () => pm.expect(pm.response.json().tipoRisco.nome).to.eql(\"Enxurrada\"));",
+                  "pm.test(\"gravidade = MEDIA\", () => pm.expect(pm.response.json().gravidade).to.eql(\"MEDIA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.6 Excluir acionamento",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/{{acionamentoCriadoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.7 Buscar acionamento excluido (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/{{acionamentoCriadoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(404); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 - Fluxo Dona Maria (OpenFeign)",
+      "description": "Comunicação síncrona: o ms-alertas altera o status da pessoa no ms-apoio. Inclui as regras que dependem da pessoa EM_ALERTA.",
+      "item": [
+        {
+          "name": "4.1 Antes: Dona Maria CADASTRADA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"statusSeguranca = CADASTRADA\", () => pm.expect(pm.response.json().statusSeguranca).to.eql(\"CADASTRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.2 Acionar padrinho (acionamento 1)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/1/acionar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = PADRINHO_ACIONADO\", () => pm.expect(pm.response.json().status).to.eql(\"PADRINHO_ACIONADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.3 Dona Maria EM_ALERTA (alterado via OpenFeign)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"statusSeguranca = EM_ALERTA\", () => pm.expect(pm.response.json().statusSeguranca).to.eql(\"EM_ALERTA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.4 Painel quem ainda falta",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas?status=EM_ALERTA"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Dona Maria no painel\", () => pm.expect(pm.response.json().map(p => p.id)).to.include(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.5 Alterar pessoa EM_ALERTA (409)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Maria Aparecida dos Santos\",\n  \"endereco\": \"Rua das Palmeiras, 120 - casa 2\",\n  \"bairro\": \"Morro da Esperança\",\n  \"necessidade\": \"Acamada, 82 anos, usa concentrador de oxigênio\",\n  \"prioridade\": 1,\n  \"nomePadrinho\": \"João Pereira\",\n  \"telefonePadrinho\": \"11987654321\",\n  \"consentimentoLgpd\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(409); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.6 Excluir pessoa EM_ALERTA (409)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(409); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.7 Acionar de novo (409)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/1/acionar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(409); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.8 Alterar acionamento em andamento (409)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pessoaId\": 1,\n  \"tipoRiscoId\": 1,\n  \"rua\": \"Rua das Palmeiras\",\n  \"gravidade\": \"ALTA\",\n  \"descricao\": \"Três moradores relatam rachaduras na encosta atrás das casas\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(409); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.9 Excluir acionamento em andamento (409)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(409); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.10 Concluir - estou seguro",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/1/concluir"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = CONCLUIDO\", () => pm.expect(pm.response.json().status).to.eql(\"CONCLUIDO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.11 Dona Maria SEGURA (alterado via OpenFeign)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"statusSeguranca = SEGURA\", () => pm.expect(pm.response.json().statusSeguranca).to.eql(\"SEGURA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.12 Painel quem ainda falta vazio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas?status=EM_ALERTA"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"ninguem EM_ALERTA\", () => pm.expect(pm.response.json().length).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5 - Regras de negocio e erros",
+      "description": "Validações (422), requisições inválidas (400), recursos inexistentes (404) e regras de status (409).",
+      "item": [
+        {
+          "name": "5.1 Cadastrar pessoa invalida (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Jo\",\n  \"telefonePadrinho\": \"123\",\n  \"prioridade\": 7,\n  \"consentimentoLgpd\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(422); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });",
+                  "pm.test(\"lista de campos invalidos\", () => { const f = pm.response.json().errors.map(e => e.fieldName); [\"nome\",\"telefonePadrinho\",\"prioridade\",\"consentimentoLgpd\"].forEach(c => pm.expect(f).to.include(c)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.2 JSON malformado (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nome\":",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(400); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.3 ID nao numerico (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/abc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(400); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.4 Pessoa inexistente (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(404); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.5 Filtro com status invalido (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas?status=INVALIDO"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(400); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.6 Marcar SEGURA quem nao esta EM_ALERTA (409)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/2/segura"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(409); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.7 Concluir acionamento ABERTO (409)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/2/concluir"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(409); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.8 Acionamento para pessoa inexistente - OpenFeign (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pessoaId\": 999,\n  \"tipoRiscoId\": 1,\n  \"rua\": \"Rua das Palmeiras\",\n  \"gravidade\": \"ALTA\",\n  \"descricao\": \"Três moradores relatam rachaduras na encosta atrás das casas\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(404); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.9 Tipo de risco inexistente (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pessoaId\": 1,\n  \"tipoRiscoId\": 99,\n  \"rua\": \"Rua das Palmeiras\",\n  \"gravidade\": \"ALTA\",\n  \"descricao\": \"Três moradores relatam rachaduras na encosta atrás das casas\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(409); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.10 Gravidade invalida (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pessoaId\": 1,\n  \"tipoRiscoId\": 1,\n  \"rua\": \"Rua das Palmeiras\",\n  \"gravidade\": \"ENORME\",\n  \"descricao\": \"Três moradores relatam rachaduras na encosta atrás das casas\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(400); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.11 Acionamento sem campos (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(422); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.12 Acionar acionamento inexistente - atravessa o Circuit Breaker (404)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/999/acionar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"corpo no padrão CustomErrorDTO\", () => { const j = pm.response.json(); pm.expect(j).to.have.property(\"timestamp\"); pm.expect(j.status).to.eql(404); pm.expect(j).to.have.property(\"error\"); pm.expect(j).to.have.property(\"path\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6 - Circuit Breaker (MANUAL)",
+      "description": "Exige parar o ms-apoio. Rode a subpasta 6a com o ms-apoio PARADO e a 6b depois de subir o ms-apoio de novo (espere ~1 minuto).",
+      "item": [
+        {
+          "name": "6a - com o ms-apoio PARADO",
+          "description": "ANTES: pare todas as instâncias do ms-apoio. As 3 chamadas caem no fallback (503 + CONFIRMACAO_PENDENTE). A partir da 3ª, o circuito está OPEN (veja o log do ms-alertas).",
+          "item": [
+            {
+              "name": "6a.1 Acionar com ms-apoio fora do ar (fallback 503)",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/2/acionar"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 503\", () => pm.response.to.have.status(503));",
+                      "pm.test(\"status = CONFIRMACAO_PENDENTE\", () => pm.expect(pm.response.json().status).to.eql(\"CONFIRMACAO_PENDENTE\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "6a.2 Acionar de novo (fallback 503)",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/2/acionar"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 503\", () => pm.response.to.have.status(503));",
+                      "pm.test(\"status = CONFIRMACAO_PENDENTE\", () => pm.expect(pm.response.json().status).to.eql(\"CONFIRMACAO_PENDENTE\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "6a.3 Acionar de novo - circuito OPEN (fallback 503)",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/2/acionar"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 503\", () => pm.response.to.have.status(503));",
+                      "pm.test(\"status = CONFIRMACAO_PENDENTE\", () => pm.expect(pm.response.json().status).to.eql(\"CONFIRMACAO_PENDENTE\"));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "6b - depois de SUBIR o ms-apoio",
+          "description": "ANTES: suba o ms-apoio e aguarde ~1 minuto (50 s de circuito aberto + registro no Eureka). O acionamento pendente é reprocessado.",
+          "item": [
+            {
+              "name": "6b.1 Acionar de novo - recuperado (200)",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": "{{baseUrl}}/ms-alertas/api/v1/acionamentos/2/acionar"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"status = PADRINHO_ACIONADO\", () => pm.expect(pm.response.json().status).to.eql(\"PADRINHO_ACIONADO\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "6b.2 Benedita EM_ALERTA (alterado via OpenFeign)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/ms-apoio/api/v1/pessoas/4"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"statusSeguranca = EM_ALERTA\", () => pm.expect(pm.response.json().statusSeguranca).to.eql(\"EM_ALERTA\"));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
