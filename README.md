@@ -11,6 +11,14 @@ Global Solution 2026.2 · **Microservice and Web Engineering & IT Services** · 
 | Arthur Paixão | RM 551739 |
 | Vinicius Fagundes da Silva | RM 555270 |
 
+## Documentação
+
+| Documento | Conteúdo |
+| --- | --- |
+| [Documentação Técnica](docs/DOCUMENTACAO_TECNICA.md) | Como o projeto ficou e como funciona: arquitetura, modelo de dados, ciclo de vida dos status, OpenFeign, Circuit Breaker, contratos da API, erros, Flyway e atendimento aos requisitos da GS |
+| [Guia de Testes](docs/GUIA_DE_TESTES.md) | Passo a passo para subir do zero e testar tudo: CRUD, comunicação síncrona, regras de negócio, Load Balancer, Circuit Breaker e banco |
+| [Coleção Postman](postman/NEXVIA.postman_collection.json) | 47 requisições com asserções automáticas (importe no Postman ou rode com o Newman) |
+
 ---
 
 ## O problema
