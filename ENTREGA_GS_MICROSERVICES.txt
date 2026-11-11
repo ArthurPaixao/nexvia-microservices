@@ -1,0 +1,12 @@
+Global Solution 2026.2 - Microservice and Web Engineering & IT Services
+Prof.a Aparecida F. Castello Rosa - 3o SIS
+
+Projeto: NEXVIA
+Equipe: RiskLess
+
+Integrantes:
+- Arthur Paixao - RM 551739
+- Vinicius Fagundes da Silva - RM 555270
+
+Repositorio GitHub (HUB/monorepo):
+https://github.com/ArthurPaixao/nexvia-microservices
